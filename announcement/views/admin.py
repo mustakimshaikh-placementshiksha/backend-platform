@@ -6,7 +6,18 @@ from announcement.serializers import (AnnouncementSerializer, CreateAnnouncement
                                       EditAnnouncementSerializer)
 
 
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from utils.swagger import StandardResponseSerializer
+
 class AnnouncementAdminAPI(APIView):
+    @swagger_auto_schema(
+        operation_summary="Create Announcement",
+        request_body=CreateAnnouncementSerializer,
+        responses={200: AnnouncementSerializer},
+        tags=["Announcement Admin"]
+    )
     @validate_serializer(CreateAnnouncementSerializer)
     @super_admin_required
     def post(self, request):
@@ -20,6 +31,12 @@ class AnnouncementAdminAPI(APIView):
                                                    visible=data["visible"])
         return self.success(AnnouncementSerializer(announcement).data)
 
+    @swagger_auto_schema(
+        operation_summary="Edit Announcement",
+        request_body=EditAnnouncementSerializer,
+        responses={200: AnnouncementSerializer},
+        tags=["Announcement Admin"]
+    )
     @validate_serializer(EditAnnouncementSerializer)
     @super_admin_required
     def put(self, request):
@@ -38,6 +55,17 @@ class AnnouncementAdminAPI(APIView):
 
         return self.success(AnnouncementSerializer(announcement).data)
 
+    @swagger_auto_schema(
+        operation_summary="Get Announcement List",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Announcement ID"),
+            openapi.Parameter("visible", openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN, description="Filter by visibility"),
+            openapi.Parameter("limit", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Limit"),
+            openapi.Parameter("offset", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Offset"),
+        ],
+        responses={200: AnnouncementSerializer(many=True)},
+        tags=["Announcement Admin"]
+    )
     @super_admin_required
     def get(self, request):
         """
@@ -55,6 +83,14 @@ class AnnouncementAdminAPI(APIView):
             announcement = announcement.filter(visible=True)
         return self.success(self.paginate_data(request, announcement, AnnouncementSerializer))
 
+    @swagger_auto_schema(
+        operation_summary="Delete Announcement",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Announcement ID")
+        ],
+        responses={200: StandardResponseSerializer},
+        tags=["Announcement Admin"]
+    )
     @super_admin_required
     def delete(self, request):
         if request.GET.get("id"):

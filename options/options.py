@@ -12,10 +12,14 @@ from .models import SysOptions as SysOptionsModel
 
 class my_property:
     """
-    在 metaclass 中使用，以实现：
-    1. ttl = None，不缓存
-    2. ttl is callable，条件缓存
-    3. 缓存 ttl 秒
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    A custom property decorator used in the metaclass to handle caching of system options.
+
+    Logic Flow:
+    1. If `ttl` is None: No caching is performed.
+    2. If `ttl` is callable: Conditional caching based on the return value.
+    3. If `ttl` is a number: Results are cached for `ttl` seconds.
     """
     def __init__(self, func=None, fset=None, ttl=None):
         self.fset = fset
@@ -49,9 +53,10 @@ class my_property:
 
             value = self.func(obj)
 
-            # 如果定义了条件缓存, ttl 是一个函数，返回要缓存多久；返回 0 代表不要缓存
+            # If conditional caching is defined, ttl is a function returning how long to cache.
+            # Return 0 means do not cache.
             if callable(self.ttl):
-                # 而且条件缓存说不要缓存，那就直接返回，不要设置 local
+                # If conditional cache says no cache, return directly without setting local storage.
                 timeout = self.ttl(value)
                 self._check_timeout(timeout)
 
@@ -60,7 +65,7 @@ class my_property:
                 elif timeout > 0:
                     self.local.value = (value, now + timeout)
             else:
-                # ttl 是一个数字
+                # ttl is a number (seconds)
                 self.local.value = (value, now + self.ttl)
             return value
         else:

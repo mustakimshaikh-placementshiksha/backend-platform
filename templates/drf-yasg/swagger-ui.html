@@ -1,0 +1,570 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+    {% block favicon %}
+    <link rel="icon" type="image/png" href="{% static 'drf-yasg/swagger-ui-dist/favicon-32x32.png' %}" />
+    {% endblock %}
+    {% block main_styles %}
+    <link rel="stylesheet" type="text/css" href="{% static 'drf-yasg/style.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'drf-yasg/swagger-ui-dist/swagger-ui.css' %}">
+    {% endblock %}
+    {% block extra_styles %}
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        /* Top bar */
+        .swagger-ui .topbar {
+            background: #1b1b1b;
+            padding: 10px 20px;
+        }
+
+        .swagger-ui .topbar .topbar-wrapper img {
+            display: none;
+        }
+
+        .swagger-ui .topbar .topbar-wrapper::before {
+            content: "⚖ OnlineJudge API";
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .swagger-ui .info {
+            margin: 20px 0 10px;
+        }
+
+        .swagger-ui .info .title {
+            font-size: 26px;
+            color: #1a1a2e;
+        }
+
+        /* Tag sections */
+        .swagger-ui .opblock-tag {
+            border-bottom: 1px solid #e0e0e0 !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: #333 !important;
+            background: #f7f9fc !important;
+            padding: 10px 20px !important;
+            margin: 4px 0 !important;
+            border-radius: 4px !important;
+        }
+
+        .swagger-ui .opblock-tag:hover {
+            background: #eef2f8 !important;
+        }
+
+        /* Method colors */
+        .swagger-ui .opblock.opblock-get {
+            border-color: #1d8c4e;
+            background: rgba(29, 140, 78, 0.04);
+        }
+
+        .swagger-ui .opblock.opblock-post {
+            border-color: #0063c9;
+            background: rgba(0, 99, 201, 0.04);
+        }
+
+        .swagger-ui .opblock.opblock-put {
+            border-color: #c07d00;
+            background: rgba(192, 125, 0, 0.04);
+        }
+
+        .swagger-ui .opblock.opblock-delete {
+            border-color: #c0392b;
+            background: rgba(192, 57, 43, 0.04);
+        }
+
+        .swagger-ui .opblock.opblock-patch {
+            border-color: #6c3483;
+            background: rgba(108, 52, 131, 0.04);
+        }
+
+        .swagger-ui .opblock.opblock-get .opblock-summary-method {
+            background: #1d8c4e;
+            min-width: 80px;
+        }
+
+        .swagger-ui .opblock.opblock-post .opblock-summary-method {
+            background: #0063c9;
+            min-width: 80px;
+        }
+
+        .swagger-ui .opblock.opblock-put .opblock-summary-method {
+            background: #c07d00;
+            min-width: 80px;
+        }
+
+        .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+            background: #c0392b;
+            min-width: 80px;
+        }
+
+        .swagger-ui .opblock.opblock-patch .opblock-summary-method {
+            background: #6c3483;
+            min-width: 80px;
+        }
+
+        .swagger-ui .opblock-summary-description {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .swagger-ui .btn.try-out__btn {
+            background: #0063c9;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .swagger-ui .btn.try-out__btn:hover {
+            background: #0052a3;
+        }
+
+        .swagger-ui .btn.execute {
+            background: #1d8c4e;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .swagger-ui .btn.execute:hover {
+            background: #176f3e;
+        }
+
+        .swagger-ui .btn.cancel {
+            border: 1px solid #c0392b;
+            color: #c0392b;
+            border-radius: 4px;
+        }
+
+        .swagger-ui textarea {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border: 1px solid #ccd5e0;
+            border-radius: 4px;
+        }
+
+        /* ── Fixed top workflow bar ── */
+        #oj-topbar {
+            position: sticky;
+            top: 0;
+            z-index: 9999;
+            background: #111827;
+            color: #fff;
+            display: flex;
+            align-items: stretch;
+            font-size: 13px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .oj-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 18px;
+            border-right: 1px solid #1f2937;
+            min-height: 46px;
+        }
+
+        .oj-step-num {
+            background: #3b82f6;
+            color: #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        #oj-login-btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #oj-login-btn:hover {
+            background: #1d4ed8;
+        }
+
+        #oj-status-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 18px;
+            margin-left: auto;
+        }
+
+        #oj-auth-badge {
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        #oj-auth-badge.logged-in {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        #oj-auth-badge.logged-out {
+            background: #dc2626;
+            color: #fff;
+        }
+
+        #oj-csrf-badge {
+            background: #1f2937;
+            color: #6ee7b7;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace;
+        }
+
+        /* ── Login modal ── */
+        #oj-login-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #oj-login-overlay.visible {
+            display: flex;
+        }
+
+        #oj-login-modal {
+            background: #fff;
+            border-radius: 12px;
+            padding: 32px 36px;
+            width: 380px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        #oj-login-modal h2 {
+            margin: 0 0 4px;
+            font-size: 20px;
+            color: #111;
+        }
+
+        #oj-login-modal p {
+            margin: 0 0 20px;
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        #oj-login-modal label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        #oj-login-modal input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+            margin-bottom: 14px;
+            outline: none;
+        }
+
+        #oj-login-modal input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        #oj-modal-submit {
+            width: 100%;
+            padding: 10px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        #oj-modal-submit:hover {
+            background: #1d4ed8;
+        }
+
+        #oj-modal-submit:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #oj-modal-close {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #9ca3af;
+            cursor: pointer;
+        }
+
+        #oj-modal-error {
+            color: #dc2626;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        #oj-modal-success {
+            color: #16a34a;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+            font-weight: 600;
+        }
+    </style>
+    {% endblock %}
+</head>
+
+<body class="swagger-body">
+
+    <!-- ══ FIXED WORKFLOW BAR ══════════════════════════════════════════════════ -->
+    <div id="oj-topbar">
+        <div class="oj-step">
+            <div class="oj-step-num">1</div>
+            <button id="oj-login-btn" onclick="showLoginModal()">🔑 Login to API</button>
+            <span style="color:#9ca3af;font-size:12px;">Set session cookie</span>
+        </div>
+        <div class="oj-step">
+            <div class="oj-step-num">2</div>
+            <span>Expand endpoint &rarr; <strong style="color:#60a5fa;">Try it out</strong></span>
+        </div>
+        <div class="oj-step">
+            <div class="oj-step-num">3</div>
+            <span>Edit pre-filled JSON &rarr; <strong style="color:#4ade80;">Execute</strong></span>
+        </div>
+        <div id="oj-status-area">
+            <span id="oj-csrf-badge">CSRF: checking…</span>
+            <span id="oj-auth-badge" class="logged-out">● Not logged in</span>
+        </div>
+    </div>
+
+    <!-- ══ LOGIN MODAL ════════════════════════════════════════════════════════ -->
+    <div id="oj-login-overlay">
+        <div id="oj-login-modal">
+            <button id="oj-modal-close" onclick="hideLoginModal()">&#x2715;</button>
+            <h2>&#128273; Quick Login</h2>
+            <p>Logs in via <strong>POST /api/account/login/</strong>.<br>
+                On success the <code>sessionid</code> cookie is set — all endpoints unlock instantly.</p>
+
+            <label for="oj-username">Username</label>
+            <input id="oj-username" type="text" value="admin" placeholder="admin" />
+
+            <label for="oj-password">Password</label>
+            <input id="oj-password" type="password" value="" placeholder="your password" />
+
+            <button id="oj-modal-submit" onclick="doLogin()">Login &rarr;</button>
+            <div id="oj-modal-error"></div>
+            <div id="oj-modal-success"></div>
+        </div>
+    </div>
+
+    {% block extra_body %}{% endblock %}
+    <div id="swagger-ui"></div>
+    {% block footer %}{% endblock %}
+
+    <script id="swagger-settings" type="application/json">{{ swagger_settings | safe }}</script>
+    <script id="oauth2-config" type="application/json">{{ oauth2_config | safe }}</script>
+
+    {% block main_scripts %}
+    <script src="{% static 'drf-yasg/swagger-ui-dist/swagger-ui-bundle.js' %}"></script>
+    <script src="{% static 'drf-yasg/swagger-ui-dist/swagger-ui-standalone-preset.js' %}"></script>
+    <script src="{% static 'drf-yasg/insQ.min.js' %}"></script>
+    <script src="{% static 'drf-yasg/immutable.min.js' %}"></script>
+    <script src="{% static 'drf-yasg/swagger-ui-init.js' %}"></script>
+    {% endblock %}
+
+    {% block extra_scripts %}
+    <script>
+        // ── Helpers ──────────────────────────────────────────────────────────────────
+        function getCsrfToken() {
+            var m = document.cookie.match(/csrftoken=([^;]+)/);
+            return m ? decodeURIComponent(m[1]) : null;
+        }
+        function showLoginModal() { document.getElementById('oj-login-overlay').classList.add('visible'); }
+        function hideLoginModal() { document.getElementById('oj-login-overlay').classList.remove('visible'); }
+
+        document.getElementById('oj-login-overlay').addEventListener('click', function (e) {
+            if (e.target === this) hideLoginModal();
+        });
+        ['oj-username', 'oj-password'].forEach(function (id) {
+            document.getElementById(id).addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') doLogin();
+            });
+        });
+
+        // ── Quick login via real API ──────────────────────────────────────────────────
+        function doLogin() {
+            var btn = document.getElementById('oj-modal-submit');
+            var errEl = document.getElementById('oj-modal-error');
+            var okEl = document.getElementById('oj-modal-success');
+            errEl.style.display = okEl.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Logging in\u2026';
+
+            fetch('/api/account/login/', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken() || ''
+                },
+                body: JSON.stringify({
+                    username: document.getElementById('oj-username').value.trim(),
+                    password: document.getElementById('oj-password').value
+                })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    btn.disabled = false;
+                    btn.textContent = 'Login \u2192';
+                    if (data.error && data.error !== null) {
+                        errEl.textContent = '\u2717 ' + (data.data || data.error);
+                        errEl.style.display = 'block';
+                    } else {
+                        okEl.textContent = '\u2713 Logged in! Session cookie set. You can now test all endpoints.';
+                        okEl.style.display = 'block';
+                        refreshAuthBadge();
+                        setTimeout(hideLoginModal, 1800);
+                    }
+                })
+                .catch(function (err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Login \u2192';
+                    errEl.textContent = '\u2717 Network error: ' + err.message;
+                    errEl.style.display = 'block';
+                });
+        }
+
+        // ── Auth status: check profile endpoint ───────────────────────────────────────
+        function refreshAuthBadge() {
+            fetch('/api/account/profile/', { credentials: 'include' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var badge = document.getElementById('oj-auth-badge');
+                    var loginBtn = document.getElementById('oj-login-btn');
+                    var username = data && data.data && data.data.user && data.data.user.username;
+                    if (username) {
+                        badge.textContent = '\u25cf ' + username;
+                        badge.className = 'logged-in';
+                        loginBtn.textContent = '\u2713 ' + username;
+                        loginBtn.style.background = '#16a34a';
+                        loginBtn.onclick = null;
+                    } else {
+                        badge.textContent = '\u25cf Not logged in';
+                        badge.className = 'logged-out';
+                        loginBtn.textContent = '\ud83d\udd11 Login to API';
+                        loginBtn.style.background = '';
+                        loginBtn.onclick = showLoginModal;
+                    }
+                })
+                .catch(function () { });
+        }
+
+        // ── CSRF badge ─────────────────────────────────────────────────────────────────
+        function refreshCsrfBadge() {
+            var t = getCsrfToken();
+            var el = document.getElementById('oj-csrf-badge');
+            if (el) {
+                el.textContent = t ? 'CSRF \u2713' : 'CSRF \u2717';
+                el.style.color = t ? '#6ee7b7' : '#f87171';
+            }
+        }
+
+        // ── Patch Swagger UI: inject CSRF + credentials on every request ───────────────
+        (function waitForUI() {
+            var attempts = 0;
+            var iv = setInterval(function () {
+                if (++attempts > 80) { clearInterval(iv); return; }
+                if (typeof window.ui === 'undefined' || !window.ui.getStore || window._csrfPatched) return;
+                clearInterval(iv);
+                window._csrfPatched = true;
+
+                var prev = window.ui.getConfigs ? window.ui.getConfigs().requestInterceptor : null;
+                var actions = window.ui.getActions ? window.ui.getActions() : null;
+                if (!actions || !actions.updateConfig) return;
+
+                window.ui.getStore().dispatch(actions.updateConfig({
+                    requestInterceptor: function (req) {
+                        if (typeof prev === 'function') req = prev(req);
+                        var token = getCsrfToken();
+                        if (token) req.headers['X-CSRFToken'] = token;
+                        req.credentials = 'include';
+                        return req;
+                    }
+                }));
+                console.log('[OJ] CSRF inject active. Token:', getCsrfToken() ? 'found' : 'missing (login first)');
+            }, 300);
+        })();
+
+        // ── Init polls ─────────────────────────────────────────────────────────────────
+        refreshCsrfBadge();
+        refreshAuthBadge();
+        setInterval(function () { refreshCsrfBadge(); refreshAuthBadge(); }, 6000);
+    </script>
+    {% endblock %}
+
+    <a id="oauth2-redirect-url" href="{% static 'drf-yasg/swagger-ui-dist/oauth2-redirect.html' %}" class="hidden"></a>
+
+    {% if USE_SESSION_AUTH %}
+    <div id="django-session-auth" class="hidden">
+        {% block session_auth_button %}
+        {% csrf_token %}
+        {% block user_context_message %}{% endblock %}
+        {% if request.user.is_authenticated %}
+        <div class='btn authorize'>
+            <a id="auth" class="header__btn" href="{{ LOGOUT_URL }}?next={{ request.path }}" data-sw-translate>
+                {% block django_logout_message %}Django Logout{% endblock %}
+            </a>
+        </div>
+        {% else %}
+        <div class='btn authorize'>
+            <a id="auth" class="header__btn" href="{{ LOGIN_URL }}?next={{ request.path }}" data-sw-translate>
+                {% block django_login_message %}Django Login{% endblock %}
+            </a>
+        </div>
+        {% endif %}
+        {% endblock %}
+    </div>
+    {% endif %}
+</body>
+
+</html>

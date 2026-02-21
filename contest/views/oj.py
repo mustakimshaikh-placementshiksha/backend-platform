@@ -19,7 +19,30 @@ from ..serializers import ContestSerializer, ContestPasswordVerifySerializer
 from ..serializers import OIContestRankSerializer, ACMContestRankSerializer
 
 
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 class ContestAnnouncementListAPI(APIView):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Retrieves announcements for a specific contest.
+
+    Logic Flow:
+    - Lists announcements associated with the given contest ID.
+    - Supports pagination via `max_id`.
+    - Only returns visible announcements.
+    """
+    @swagger_auto_schema(
+        operation_summary="Get Contest Announcement List",
+        manual_parameters=[
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Contest ID"),
+            openapi.Parameter("max_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Max ID"),
+        ],
+        responses={200: ContestAnnouncementSerializer(many=True)},
+        tags=["Contest"]
+    )
     @check_contest_permission(check_type="announcements")
     def get(self, request):
         contest_id = request.GET.get("contest_id")
@@ -33,6 +56,23 @@ class ContestAnnouncementListAPI(APIView):
 
 
 class ContestAPI(APIView):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Retrieves detailed information for a specific contest.
+
+    Logic Flow:
+    - Fetches contest by ID.
+    - Returns serialized contest data along with the current server time (`now`).
+    """
+    @swagger_auto_schema(
+        operation_summary="Get Contest Detail",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Contest ID"),
+        ],
+        responses={200: ContestSerializer},
+        tags=["Contest"]
+    )
     def get(self, request):
         id = request.GET.get("id")
         if not id or not check_is_id(id):
@@ -47,6 +87,28 @@ class ContestAPI(APIView):
 
 
 class ContestListAPI(APIView):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Retrieves a list of all visible contests.
+
+    Logic Flow:
+    - Filters contests by rule type (ACM/OI), status (Not Started, Ended, Underway), and keyword search.
+    - Status filtering depends on current server time compared to contest start/end times.
+    - Returns paginated list of contests.
+    """
+    @swagger_auto_schema(
+        operation_summary="Get Contest List",
+        manual_parameters=[
+            openapi.Parameter("limit", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Limit"),
+            openapi.Parameter("offset", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Offset"),
+            openapi.Parameter("keyword", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Keyword"),
+            openapi.Parameter("rule_type", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Rule Type"),
+            openapi.Parameter("status", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Status"),
+        ],
+        responses={200: ContestSerializer(many=True)},
+        tags=["Contest"]
+    )
     def get(self, request):
         contests = Contest.objects.select_related("created_by").filter(visible=True)
         keyword = request.GET.get("keyword")
@@ -68,6 +130,22 @@ class ContestListAPI(APIView):
 
 
 class ContestPasswordVerifyAPI(APIView):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Verifies the password for password-protected contests.
+
+    Logic Flow:
+    - Checks if the contest matches the provided ID and has a password set.
+    - Validates the provided password.
+    - If valid, stores the password in the user's session to grant access.
+    """
+    @swagger_auto_schema(
+        operation_summary="Verify Contest Password",
+        request_body=ContestPasswordVerifySerializer,
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_BOOLEAN))},
+        tags=["Contest"]
+    )
     @validate_serializer(ContestPasswordVerifySerializer)
     @login_required
     def post(self, request):
@@ -89,6 +167,23 @@ class ContestPasswordVerifyAPI(APIView):
 
 
 class ContestAccessAPI(APIView):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Checks if the user has access to a password-protected contest.
+
+    Logic Flow:
+    - Verifies checks if the contest ID in the user's session has a valid password stored.
+    - Used by the frontend to determine if it should prompt for a password.
+    """
+    @swagger_auto_schema(
+        operation_summary="Check Contest Access",
+        manual_parameters=[
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Contest ID"),
+        ],
+        responses={200: openapi.Response("Access Status", schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={"access": openapi.Schema(type=openapi.TYPE_BOOLEAN)}))},
+        tags=["Contest"]
+    )
     @login_required
     def get(self, request):
         contest_id = request.GET.get("contest_id")
@@ -103,6 +198,20 @@ class ContestAccessAPI(APIView):
 
 
 class ContestRankAPI(APIView):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Retrieves and downloads the contest leaderboard/rankings.
+
+    Logic Flow:
+    - `get_rank`: Fetches rank data from either `ACMContestRank` or `OIContestRank` based on contest type.
+    - `get`:
+        - Caches rank data to reduce database load.
+        - Supports admin forced refresh (`force_refresh`).
+        - Supports CSV download (`download_csv`) for exporting results.
+            - Builds an Excel file in-memory using `xlsxwriter`.
+        - Returns paginated rank data if not downloading.
+    """
     def get_rank(self):
         if self.contest.rule_type == ContestRuleType.ACM:
             return ACMContestRank.objects.filter(contest=self.contest,
@@ -122,6 +231,18 @@ class ContestRankAPI(APIView):
             string = chr(65 + remainder) + string
         return string
 
+    @swagger_auto_schema(
+        operation_summary="Get Contest Ranks",
+        manual_parameters=[
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Contest ID"),
+            openapi.Parameter("limit", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Limit"),
+            openapi.Parameter("offset", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Offset"),
+            openapi.Parameter("force_refresh", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Force Refresh (1=Yes)"),
+            openapi.Parameter("download_csv", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Download CSV"),
+        ],
+        responses={200: openapi.Response("Contest Ranks", schema=openapi.Schema(type=openapi.TYPE_OBJECT))},  # Keeping it simple for now due to dynamic structure
+        tags=["Contest"]
+    )
     @check_contest_permission(check_type="ranks")
     def get(self, request):
         download_csv = request.GET.get("download_csv")

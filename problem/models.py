@@ -35,35 +35,48 @@ def _default_io_mode():
 
 
 class Problem(models.Model):
-    # display ID
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Represents a programming problem.
+
+    Logic Flow:
+    - Stores problem statement, input/output descriptions, samples, and test cases.
+    - `_id` is the display ID used in URLs.
+    - `io_mode` defines input/output types (standard or file).
+    - `spj` flags indicate Special Judge usage.
+    - `rule_type` distinguishes between ACM and OI modes.
+    - `statistic_info` caches acceptance/submission counts.
+    """
+    # display ID (custom alphanumeric ID for URLs)
     _id = models.TextField(db_index=True)
     contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
-    # for contest problem
+    # determines validity for contest problems
     is_public = models.BooleanField(default=False)
     title = models.TextField()
-    # HTML
+    # HTML content for description
     description = RichTextField()
     input_description = RichTextField()
     output_description = RichTextField()
-    # [{input: "test", output: "123"}, {input: "test123", output: "456"}]
+    # Example format: [{input: "test", output: "123"}, {input: "test123", output: "456"}]
     samples = JSONField()
     test_case_id = models.TextField()
-    # [{"input_name": "1.in", "output_name": "1.out", "score": 0}]
+    # Format: [{"input_name": "1.in", "output_name": "1.out", "score": 0}]
     test_case_score = JSONField()
     hint = RichTextField(null=True)
     languages = JSONField()
     template = JSONField()
     create_time = models.DateTimeField(auto_now_add=True)
-    # we can not use auto_now here
+    # Last update timestamp (manually updated)
     last_update_time = models.DateTimeField(null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    # ms
+    # Time limit in milliseconds
     time_limit = models.IntegerField()
-    # MB
+    # Memory limit in Megabytes
     memory_limit = models.IntegerField()
-    # io mode
+    # Input/Output mode configuration
     io_mode = JSONField(default=_default_io_mode)
-    # special judge related
+    # Special Judge configuration
     spj = models.BooleanField(default=False)
     spj_language = models.TextField(null=True)
     spj_code = models.TextField(null=True)
@@ -74,11 +87,11 @@ class Problem(models.Model):
     difficulty = models.TextField()
     tags = models.ManyToManyField(ProblemTag)
     source = models.TextField(null=True)
-    # for OI mode
+    # Total score for OI mode
     total_score = models.IntegerField(default=0)
     submission_number = models.BigIntegerField(default=0)
     accepted_number = models.BigIntegerField(default=0)
-    # {JudgeStatus.ACCEPTED: 3, JudgeStaus.WRONG_ANSWER: 11}, the number means count
+    # Statistics cache: {JudgeStatus.ACCEPTED: 3, JudgeStaus.WRONG_ANSWER: 11}
     statistic_info = JSONField(default=dict)
     share_submission = models.BooleanField(default=False)
 

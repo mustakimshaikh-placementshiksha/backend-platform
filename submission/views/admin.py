@@ -5,7 +5,20 @@ from utils.api import APIView
 from ..models import Submission
 
 
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from utils.swagger import StandardResponseSerializer
+
 class SubmissionRejudgeAPI(APIView):
+    @swagger_auto_schema(
+        operation_summary="Rejudge Submission",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description="Submission ID")
+        ],
+        responses={200: StandardResponseSerializer},
+        tags=["Submission Admin"]
+    )
     @super_admin_required
     def get(self, request):
         id = request.GET.get("id")

@@ -21,7 +21,56 @@ from ..serializers import (ContestAnnouncementSerializer, ContestAdminSerializer
                            ACMContesHelperSerializer, )
 
 
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from utils.swagger import StandardResponseSerializer
+
 class ContestAPI(APIView):
+    @swagger_auto_schema(
+        operation_id="contest_admin_create",
+        operation_summary="Admin: Create Contest",
+        operation_description=(
+            "**Admin only.** Create a new contest.\n\n"
+            "- `start_time` / `end_time`: ISO8601 datetime strings (e.g. `2026-03-01T10:00:00`).\n"
+            "- `rule_type`: `ACM` or `OI`\n"
+            "- `contest_type`: `Public` or `Password Protected`\n"
+            "- `allowed_ip_ranges`: CIDR networks to restrict participation (empty = no restriction)"
+        ),
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["title", "description", "start_time", "end_time", "rule_type", "contest_type"],
+            properties={
+                "title":             openapi.Schema(type=openapi.TYPE_STRING, example="Spring 2026 ACM Contest"),
+                "description":       openapi.Schema(type=openapi.TYPE_STRING, example="Spring semester competitive programming contest."),
+                "start_time":        openapi.Schema(type=openapi.TYPE_STRING, format="date-time", example="2026-03-01T10:00:00"),
+                "end_time":          openapi.Schema(type=openapi.TYPE_STRING, format="date-time", example="2026-03-01T13:00:00"),
+                "rule_type":         openapi.Schema(type=openapi.TYPE_STRING, enum=["ACM", "OI"], example="ACM"),
+                "contest_type":      openapi.Schema(type=openapi.TYPE_STRING, enum=["Public", "Password Protected"], example="Public"),
+                "password":          openapi.Schema(type=openapi.TYPE_STRING, example="",
+                                                    description="Required only if contest_type is 'Password Protected'"),
+                "real_time_rank":    openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True,
+                                                    description="Show live leaderboard during contest"),
+                "allowed_ip_ranges": openapi.Schema(type=openapi.TYPE_ARRAY,
+                                                    items=openapi.Schema(type=openapi.TYPE_STRING),
+                                                    example=[],
+                                                    description="IP CIDR ranges allowed to participate, empty = unrestricted"),
+            },
+            example={
+                "title": "Spring 2026 ACM Contest",
+                "description": "Spring semester competitive programming contest.",
+                "start_time": "2026-03-01T10:00:00",
+                "end_time": "2026-03-01T13:00:00",
+                "rule_type": "ACM",
+                "contest_type": "Public",
+                "password": "",
+                "real_time_rank": True,
+                "allowed_ip_ranges": []
+            }
+        ),
+        responses={200: ContestAdminSerializer},
+        tags=["Contest Admin"]
+    )
     @validate_serializer(CreateConetestSeriaizer)
     def post(self, request):
         data = request.data
@@ -40,6 +89,45 @@ class ContestAPI(APIView):
         contest = Contest.objects.create(**data)
         return self.success(ContestAdminSerializer(contest).data)
 
+    @swagger_auto_schema(
+        operation_id="contest_admin_edit",
+        operation_summary="Admin: Edit Contest",
+        operation_description=(
+            "**Admin only.** Update an existing contest. Include `id` to specify which contest to edit."
+        ),
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["id", "title", "description", "start_time", "end_time", "rule_type", "contest_type"],
+            properties={
+                "id":                openapi.Schema(type=openapi.TYPE_INTEGER, example=1,
+                                                   description="Contest ID to edit"),
+                "title":             openapi.Schema(type=openapi.TYPE_STRING, example="Spring 2026 ACM Contest (Updated)"),
+                "description":       openapi.Schema(type=openapi.TYPE_STRING, example="Updated description."),
+                "start_time":        openapi.Schema(type=openapi.TYPE_STRING, format="date-time", example="2026-03-01T10:00:00"),
+                "end_time":          openapi.Schema(type=openapi.TYPE_STRING, format="date-time", example="2026-03-01T14:00:00"),
+                "rule_type":         openapi.Schema(type=openapi.TYPE_STRING, enum=["ACM", "OI"], example="ACM"),
+                "contest_type":      openapi.Schema(type=openapi.TYPE_STRING, enum=["Public", "Password Protected"], example="Public"),
+                "password":          openapi.Schema(type=openapi.TYPE_STRING, example=""),
+                "real_time_rank":    openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True),
+                "allowed_ip_ranges": openapi.Schema(type=openapi.TYPE_ARRAY,
+                                                    items=openapi.Schema(type=openapi.TYPE_STRING), example=[]),
+            },
+            example={
+                "id": 1,
+                "title": "Spring 2026 ACM Contest (Updated)",
+                "description": "Updated description.",
+                "start_time": "2026-03-01T10:00:00",
+                "end_time": "2026-03-01T14:00:00",
+                "rule_type": "ACM",
+                "contest_type": "Public",
+                "password": "",
+                "real_time_rank": True,
+                "allowed_ip_ranges": []
+            }
+        ),
+        responses={200: ContestAdminSerializer},
+        tags=["Contest Admin"]
+    )
     @validate_serializer(EditConetestSeriaizer)
     def put(self, request):
         data = request.data
@@ -68,6 +156,17 @@ class ContestAPI(APIView):
         contest.save()
         return self.success(ContestAdminSerializer(contest).data)
 
+    @swagger_auto_schema(
+        operation_summary="Get Contest List",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Contest ID"),
+            openapi.Parameter("keyword", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Keyword"),
+            openapi.Parameter("limit", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Limit"),
+            openapi.Parameter("offset", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Offset"),
+        ],
+        responses={200: ContestAdminSerializer(many=True)},
+        tags=["Contest Admin"]
+    )
     def get(self, request):
         contest_id = request.GET.get("id")
         if contest_id:
@@ -89,6 +188,12 @@ class ContestAPI(APIView):
 
 
 class ContestAnnouncementAPI(APIView):
+    @swagger_auto_schema(
+        operation_summary="Create Contest Announcement",
+        request_body=CreateContestAnnouncementSerializer,
+        responses={200: ContestAnnouncementSerializer},
+        tags=["Contest Admin"]
+    )
     @validate_serializer(CreateContestAnnouncementSerializer)
     def post(self, request):
         """
@@ -105,6 +210,12 @@ class ContestAnnouncementAPI(APIView):
         announcement = ContestAnnouncement.objects.create(**data)
         return self.success(ContestAnnouncementSerializer(announcement).data)
 
+    @swagger_auto_schema(
+        operation_summary="Edit Contest Announcement",
+        request_body=EditContestAnnouncementSerializer,
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_OBJECT))},
+        tags=["Contest Admin"]
+    )
     @validate_serializer(EditContestAnnouncementSerializer)
     def put(self, request):
         """
@@ -121,6 +232,14 @@ class ContestAnnouncementAPI(APIView):
         contest_announcement.save()
         return self.success()
 
+    @swagger_auto_schema(
+        operation_summary="Delete Contest Announcement",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Announcement ID")
+        ],
+        responses={200: StandardResponseSerializer},
+        tags=["Contest Admin"]
+    )
     def delete(self, request):
         """
         Delete one contest_announcement.
@@ -134,6 +253,16 @@ class ContestAnnouncementAPI(APIView):
                 ContestAnnouncement.objects.filter(id=contest_announcement_id).delete()
         return self.success()
 
+    @swagger_auto_schema(
+        operation_summary="Get Contest Announcement List",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Announcement ID"),
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Contest ID"),
+            openapi.Parameter("keyword", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Keyword"),
+        ],
+        responses={200: ContestAnnouncementSerializer(many=True)},
+        tags=["Contest Admin"]
+    )
     def get(self, request):
         """
         Get one contest_announcement or contest_announcement list.
@@ -160,6 +289,14 @@ class ContestAnnouncementAPI(APIView):
 
 
 class ACMContestHelper(APIView):
+    @swagger_auto_schema(
+        operation_summary="Get ACM Contest Ranks",
+        manual_parameters=[
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Contest ID"),
+        ],
+        responses={200: openapi.Response("Ranks", schema=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT)))},
+        tags=["Contest Admin"]
+    )
     @check_contest_permission(check_type="ranks")
     def get(self, request):
         ranks = ACMContestRank.objects.filter(contest=self.contest, accepted_number__gt=0) \
@@ -179,6 +316,12 @@ class ACMContestHelper(APIView):
         results.sort(key=lambda x: -x["ac_info"]["ac_time"])
         return self.success(results)
 
+    @swagger_auto_schema(
+        operation_summary="Update ACM Contest Rank Status",
+        request_body=ACMContesHelperSerializer,
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_OBJECT))},
+        tags=["Contest Admin"]
+    )
     @check_contest_permission(check_type="ranks")
     @validate_serializer(ACMContesHelperSerializer)
     def put(self, request):
@@ -222,6 +365,15 @@ class DownloadContestSubmissions(APIView):
                     user_ac_map[problem_id] = True
         return path
 
+    @swagger_auto_schema(
+        operation_summary="Download Contest Submissions",
+        manual_parameters=[
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Contest ID"),
+            openapi.Parameter("exclude_admin", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Exclude Admin (1=Yes)"),
+        ],
+        responses={200: openapi.Response("File Download", schema=openapi.Schema(type=openapi.TYPE_FILE))},
+        tags=["Contest Admin"]
+    )
     def get(self, request):
         contest_id = request.GET.get("contest_id")
         if not contest_id:

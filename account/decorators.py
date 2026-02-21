@@ -12,9 +12,25 @@ from .models import ProblemPermission
 class BasePermissionDecorator(object):
     def __init__(self, func):
         self.func = func
+        # ── Preserve functools.wraps attributes so drf_yasg can find
+        #    @swagger_auto_schema metadata through the decorator chain. ──────────
+        # drf_yasg looks for `_swagger_auto_schema` on the method object.
+        # Because this is a class-based descriptor (not a plain wrapper function),
+        # functools.wraps() doesn't apply automatically, so we copy manually.
+        functools.update_wrapper(self, func)
+        # Also copy any swagger/yasg private attrs that were set on func
+        for attr in ('_swagger_auto_schema', '__wrapped__'):
+            if hasattr(func, attr):
+                setattr(self, attr, getattr(func, attr))
 
     def __get__(self, obj, obj_type):
-        return functools.partial(self.__call__, obj)
+        bound = functools.partial(self.__call__, obj)
+        # drf_yasg accesses the view method via descriptor protocol (ViewClass.method),
+        # which calls __get__ and returns this partial. Copy swagger metadata onto it
+        # so drf_yasg can find the @swagger_auto_schema schema on the bound method.
+        if hasattr(self, '_swagger_auto_schema'):
+            bound._swagger_auto_schema = self._swagger_auto_schema
+        return bound
 
     def error(self, data):
         return JSONResponse.response({"error": "permission-denied", "data": data})

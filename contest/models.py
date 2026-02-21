@@ -9,6 +9,19 @@ from utils.models import RichTextField
 
 
 class Contest(models.Model):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Represents a programming contest.
+
+    Logic Flow:
+    - Defines contest metadata (title, description, start/end time).
+    - `real_time_rank`: Controls whether the leaderboard updates in real-time.
+    - `rule_type`: Contest rules (ACM or OI).
+    - `allowed_ip_ranges`: Optional IP restriction for the contest.
+    - `status`: Property to check if contest is not started, underway, or ended.
+    - `contest_type`: Public or Password Protected.
+    """
     title = models.TextField()
     description = RichTextField()
     # show real time rank or cached rank
@@ -21,20 +34,20 @@ class Contest(models.Model):
     create_time = models.DateTimeField(auto_now_add=True)
     last_update_time = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    # 是否可见 false的话相当于删除
+    # if false, it acts as a soft deletion
     visible = models.BooleanField(default=True)
     allowed_ip_ranges = JSONField(default=list)
 
     @property
     def status(self):
         if self.start_time > now():
-            # 没有开始 返回1
+            # Not started
             return ContestStatus.CONTEST_NOT_START
         elif self.end_time < now():
-            # 已经结束 返回-1
+            # Ended
             return ContestStatus.CONTEST_ENDED
         else:
-            # 正在进行 返回0
+            # Underway
             return ContestStatus.CONTEST_UNDERWAY
 
     @property
@@ -43,7 +56,8 @@ class Contest(models.Model):
             return ContestType.PASSWORD_PROTECTED_CONTEST
         return ContestType.PUBLIC_CONTEST
 
-    # 是否有权查看problem 的一些统计信息 诸如submission_number, accepted_number 等
+    # Checks if user has permission to view problem details (like stats)
+    # logic: ACM always shows, Ended always shows, Admins always show, Real-time rank always shows
     def problem_details_permission(self, user):
         return self.rule_type == ContestRuleType.ACM or \
                self.status == ContestStatus.CONTEST_ENDED or \
@@ -65,6 +79,11 @@ class AbstractContestRank(models.Model):
 
 
 class ACMContestRank(AbstractContestRank):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Stores rankings for an ACM-style contest.
+    """
     accepted_number = models.IntegerField(default=0)
     # total_time is only for ACM contest, total_time =  ac time + none-ac times * 20 * 60
     total_time = models.IntegerField(default=0)
@@ -78,6 +97,11 @@ class ACMContestRank(AbstractContestRank):
 
 
 class OIContestRank(AbstractContestRank):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Stores rankings for an OI-style contest.
+    """
     total_score = models.IntegerField(default=0)
     # {"23": 333}
     # key is problem id, value is current score
@@ -89,6 +113,11 @@ class OIContestRank(AbstractContestRank):
 
 
 class ContestAnnouncement(models.Model):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Announcements made within a specific contest.
+    """
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
     title = models.TextField()
     content = RichTextField()

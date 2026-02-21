@@ -9,6 +9,11 @@ from utils.shortcuts import rand_str
 
 
 class JudgeStatus:
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Enumeration of various matching statuses for a submission.
+    """
     COMPILE_ERROR = -2
     WRONG_ANSWER = -1
     ACCEPTED = 0
@@ -23,6 +28,18 @@ class JudgeStatus:
 
 
 class Submission(models.Model):
+    """
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Represents a code submission for a problem.
+
+    Logic Flow:
+    - Stores the submitted code, language, and associated user/problem/contest.
+    - Tracks the judging result (status, time, memory) returned by the JudgeServer.
+    - `info` stores detailed judgment results per test case.
+    - `statistic_info` stores summary statistics like total time and memory usage.
+    - `shared` flag allows users to make their submission code public.
+    """
     id = models.TextField(default=rand_str, primary_key=True, db_index=True)
     contest = models.ForeignKey(Contest, null=True, on_delete=models.CASCADE)
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
@@ -31,12 +48,12 @@ class Submission(models.Model):
     username = models.TextField()
     code = models.TextField()
     result = models.IntegerField(db_index=True, default=JudgeStatus.PENDING)
-    # 从JudgeServer返回的判题详情
+    # Detailed judgment info returned from JudgeServer (per test case)
     info = JSONField(default=dict)
     language = models.TextField()
     shared = models.BooleanField(default=False)
-    # 存储该提交所用时间和内存值，方便提交列表显示
-    # {time_cost: "", memory_cost: "", err_info: "", score: 0}
+    # Stores the time and memory usage for the submission to display in lists
+    # Format: {time_cost: "", memory_cost: "", err_info: "", score: 0}
     statistic_info = JSONField(default=dict)
     ip = models.TextField(null=True)
 

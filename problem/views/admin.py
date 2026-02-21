@@ -111,9 +111,26 @@ class TestCaseZipProcessor(object):
                     return sorted(ret, key=natural_sort_key)
 
 
+
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from utils.swagger import StandardResponseSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+
+
 class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
+    parser_classes = [MultiPartParser, FormParser]
     request_parsers = ()
 
+    @swagger_auto_schema(
+        operation_summary="Download Test Case",
+        manual_parameters=[
+            openapi.Parameter("problem_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Problem ID")
+        ],
+        responses={200: openapi.Response("File Download", schema=openapi.Schema(type=openapi.TYPE_FILE))},
+        tags=["Problem Admin"]
+    )
     def get(self, request):
         problem_id = request.GET.get("problem_id")
         if not problem_id:
@@ -144,6 +161,16 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
         response["Content-Length"] = os.path.getsize(file_name)
         return response
 
+    @swagger_auto_schema(
+        operation_summary="Upload Test Case",
+        manual_parameters=[
+            openapi.Parameter("file", openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Test Case Zip"),
+            openapi.Parameter("spj", openapi.IN_FORM, type=openapi.TYPE_BOOLEAN, required=True, description="Is SPJ")
+        ],
+        consumes=["multipart/form-data"],
+        responses={200: StandardResponseSerializer},
+        tags=["Problem Admin"]
+    )
     def post(self, request):
         form = TestCaseUploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -161,6 +188,12 @@ class TestCaseAPI(CSRFExemptAPIView, TestCaseZipProcessor):
 
 
 class CompileSPJAPI(APIView):
+    @swagger_auto_schema(
+        operation_summary="Compile SPJ Code",
+        request_body=CompileSPJSerializer,
+        responses={200: StandardResponseSerializer},
+        tags=["Problem Admin"]
+    )
     @validate_serializer(CompileSPJSerializer)
     def post(self, request):
         data = request.data
@@ -197,6 +230,12 @@ class ProblemBase(APIView):
 
 
 class ProblemAPI(ProblemBase):
+    @swagger_auto_schema(
+        operation_summary="Create Problem",
+        request_body=CreateProblemSerializer,
+        responses={200: ProblemAdminSerializer},
+        tags=["Problem Admin"]
+    )
     @problem_permission_required
     @validate_serializer(CreateProblemSerializer)
     def post(self, request):
@@ -224,6 +263,18 @@ class ProblemAPI(ProblemBase):
             problem.tags.add(tag)
         return self.success(ProblemAdminSerializer(problem).data)
 
+    @swagger_auto_schema(
+        operation_summary="Get Problem List",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Problem ID"),
+            openapi.Parameter("limit", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Limit"),
+            openapi.Parameter("offset", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Offset"),
+            openapi.Parameter("keyword", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Keyword"),
+            openapi.Parameter("rule_type", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Rule Type"),
+        ],
+        responses={200: ProblemAdminSerializer(many=True)},
+        tags=["Problem Admin"]
+    )
     @problem_permission_required
     def get(self, request):
         problem_id = request.GET.get("id")
@@ -251,6 +302,12 @@ class ProblemAPI(ProblemBase):
             problems = problems.filter(created_by=user)
         return self.success(self.paginate_data(request, problems, ProblemAdminSerializer))
 
+    @swagger_auto_schema(
+        operation_summary="Edit Problem",
+        request_body=EditProblemSerializer,
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_OBJECT))},
+        tags=["Problem Admin"]
+    )
     @problem_permission_required
     @validate_serializer(EditProblemSerializer)
     def put(self, request):
@@ -290,6 +347,14 @@ class ProblemAPI(ProblemBase):
 
         return self.success()
 
+    @swagger_auto_schema(
+        operation_summary="Delete Problem",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Problem ID")
+        ],
+        responses={200: StandardResponseSerializer},
+        tags=["Problem Admin"]
+    )
     @problem_permission_required
     def delete(self, request):
         id = request.GET.get("id")
@@ -308,6 +373,12 @@ class ProblemAPI(ProblemBase):
 
 
 class ContestProblemAPI(ProblemBase):
+    @swagger_auto_schema(
+        operation_summary="Create Contest Problem",
+        request_body=CreateContestProblemSerializer,
+        responses={200: ProblemAdminSerializer},
+        tags=["Contest Problem Admin"]
+    )
     @validate_serializer(CreateContestProblemSerializer)
     def post(self, request):
         data = request.data
@@ -345,6 +416,18 @@ class ContestProblemAPI(ProblemBase):
             problem.tags.add(tag)
         return self.success(ProblemAdminSerializer(problem).data)
 
+    @swagger_auto_schema(
+        operation_summary="Get Contest Problem List",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Problem ID"),
+            openapi.Parameter("contest_id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Contest ID"),
+            openapi.Parameter("keyword", openapi.IN_QUERY, type=openapi.TYPE_STRING, description="Keyword"),
+            openapi.Parameter("limit", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Limit"),
+            openapi.Parameter("offset", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="Offset"),
+        ],
+        responses={200: ProblemAdminSerializer(many=True)},
+        tags=["Contest Problem Admin"]
+    )
     def get(self, request):
         problem_id = request.GET.get("id")
         contest_id = request.GET.get("contest_id")
@@ -372,6 +455,12 @@ class ContestProblemAPI(ProblemBase):
             problems = problems.filter(title__contains=keyword)
         return self.success(self.paginate_data(request, problems, ProblemAdminSerializer))
 
+    @swagger_auto_schema(
+        operation_summary="Edit Contest Problem",
+        request_body=EditContestProblemSerializer,
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_OBJECT))},
+        tags=["Contest Problem Admin"]
+    )
     @validate_serializer(EditContestProblemSerializer)
     def put(self, request):
         data = request.data
@@ -419,6 +508,14 @@ class ContestProblemAPI(ProblemBase):
             problem.tags.add(tag)
         return self.success()
 
+    @swagger_auto_schema(
+        operation_summary="Delete Contest Problem",
+        manual_parameters=[
+            openapi.Parameter("id", openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True, description="Problem ID")
+        ],
+        responses={200: StandardResponseSerializer},
+        tags=["Contest Problem Admin"]
+    )
     def delete(self, request):
         id = request.GET.get("id")
         if not id:
@@ -438,6 +535,12 @@ class ContestProblemAPI(ProblemBase):
 
 
 class MakeContestProblemPublicAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="Make Contest Problem Public",
+        request_body=ContestProblemMakePublicSerializer,
+        responses={200: StandardResponseSerializer},
+        tags=["Contest Problem Admin"]
+    )
     @validate_serializer(ContestProblemMakePublicSerializer)
     @problem_permission_required
     def post(self, request):
@@ -469,6 +572,12 @@ class MakeContestProblemPublicAPIView(APIView):
 
 
 class AddContestProblemAPI(APIView):
+    @swagger_auto_schema(
+        operation_summary="Add Public Problem to Contest",
+        request_body=AddContestProblemSerializer,
+        responses={200: StandardResponseSerializer},
+        tags=["Contest Problem Admin"]
+    )
     @validate_serializer(AddContestProblemSerializer)
     def post(self, request):
         data = request.data
@@ -527,6 +636,12 @@ class ExportProblemAPI(APIView):
                                arcname=f"{index}/testcase/{v['output_name']}",
                                compress_type=compression)
 
+    @swagger_auto_schema(
+        operation_summary="Export Problems",
+        query_serializer=ExportProblemRequestSerialzier,
+        responses={200: openapi.Response("File Download", schema=openapi.Schema(type=openapi.TYPE_FILE))},
+        tags=["Problem Admin"]
+    )
     @validate_serializer(ExportProblemRequestSerialzier)
     def get(self, request):
         problems = Problem.objects.filter(id__in=request.data["problem_id"])
@@ -547,8 +662,20 @@ class ExportProblemAPI(APIView):
 
 
 class ImportProblemAPI(CSRFExemptAPIView, TestCaseZipProcessor):
+    parser_classes = [MultiPartParser, FormParser]
     request_parsers = ()
 
+    @swagger_auto_schema(
+        operation_summary="Import Problems",
+        manual_parameters=[
+            openapi.Parameter("file", openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Problem Zip")
+        ],
+        consumes=["multipart/form-data"],
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={
+            "import_count": openapi.Schema(type=openapi.TYPE_INTEGER)
+        }))},
+        tags=["Problem Admin"]
+    )
     def post(self, request):
         form = UploadProblemForm(request.POST, request.FILES)
         if form.is_valid():
@@ -626,6 +753,7 @@ class ImportProblemAPI(CSRFExemptAPIView, TestCaseZipProcessor):
 
 
 class FPSProblemImport(CSRFExemptAPIView):
+    parser_classes = [MultiPartParser, FormParser]
     request_parsers = ()
 
     def _create_problem(self, problem_data, creator):
@@ -669,6 +797,17 @@ class FPSProblemImport(CSRFExemptAPIView):
                                difficulty=Difficulty.MID,
                                test_case_id=problem_data["test_case_id"])
 
+    @swagger_auto_schema(
+        operation_summary="Import FPS Problems",
+        manual_parameters=[
+            openapi.Parameter("file", openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="FPS File")
+        ],
+        consumes=["multipart/form-data"],
+        responses={200: openapi.Response("Succeeded", schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={
+            "import_count": openapi.Schema(type=openapi.TYPE_INTEGER)
+        }))},
+        tags=["Problem Admin"]
+    )
     def post(self, request):
         form = UploadProblemForm(request.POST, request.FILES)
         if form.is_valid():

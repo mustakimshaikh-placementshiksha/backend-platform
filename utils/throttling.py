@@ -3,13 +3,23 @@ import time
 
 class TokenBucket:
     """
-    注意：对于单个key的操作不是线程安全的
+    Refactored by: Mustakim.shaikh@placementshiksha.com
+
+    Implements the Token Bucket algorithm for rate limiting.
+    Note: Operations on a single key are not thread-safe in this implementation.
+
+    Logic Flow:
+    - Maintains a bucket of tokens for a given key.
+    - `capacity`: Maximum number of tokens the bucket can hold.
+    - `fill_rate`: Rate at which tokens are added to the bucket (tokens per second).
+    - `default_capacity`: Initial number of tokens.
+    - `consume`: Attempts to remove tokens from the bucket. Refills based on time elapsed since last check.
     """
     def __init__(self, key, capacity, fill_rate, default_capacity, redis_conn):
         """
-        :param capacity: 最大容量
-        :param fill_rate: 填充速度/每秒
-        :param default_capacity: 初始容量
+        :param capacity: Max capacity
+        :param fill_rate: Fill rate / second
+        :param default_capacity: Initial capacity
         :param redis_conn: redis connection
         """
         self._key = key
@@ -53,9 +63,9 @@ class TokenBucket:
 
     def consume(self, num=1):
         """
-        消耗 num 个 token，返回是否成功
-        :param num:
-        :return: result: bool, wait_time: float
+        Consumes `num` tokens, returns whether successful.
+        :param num: Number of tokens to consume
+        :return: result: bool, wait_time: float (time to wait if failed)
         """
         # print("capacity ", self.fill(time.time()))
         if self._last_capacity >= num:
