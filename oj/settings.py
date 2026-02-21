@@ -248,30 +248,36 @@
 # DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
 import os
+import dj_database_url
 
 # =======================
 # Base directory
 # =======================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = BASE_DIR  # can be adjusted if you have a separate data folder
+DATA_DIR = BASE_DIR
 
 # =======================
 # Debug / Hosts
 # =======================
-DEBUG = True
-ALLOWED_HOSTS = ["*"]  # allow all hosts for local development
+# On Render set DJANGO_DEBUG=False via environment variable
+DEBUG = os.environ.get("DJANGO_DEBUG", "True") != "False"
+
+# Accept from env: comma-separated list e.g. "myapp.onrender.com,localhost"
+_ALLOWED = os.environ.get("ALLOWED_HOSTS", "*")
+ALLOWED_HOSTS = [h.strip() for h in _ALLOWED.split(",")]
 
 # =======================
 # Secret Key
 # =======================
-# Create a secret.key file in DATA_DIR/config/secret.key or generate one
+# Priority: 1) DJANGO_SECRET_KEY env var  2) config/secret.key file  3) hardcoded dev key
 SECRET_KEY_FILE = os.path.join(DATA_DIR, "config", "secret.key")
-if os.path.exists(SECRET_KEY_FILE):
+if os.environ.get("DJANGO_SECRET_KEY"):
+    SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+elif os.path.exists(SECRET_KEY_FILE):
     with open(SECRET_KEY_FILE, "r") as f:
         SECRET_KEY = f.read().strip()
 else:
-    # fallback key for local dev
-    SECRET_KEY = "local-dev-secret-key"
+    SECRET_KEY = "local-dev-secret-key-change-in-production"
 
 # =======================
 # Applications
@@ -314,6 +320,7 @@ MIDDLEWARE = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'account.middleware.AdminRoleRequiredMiddleware',
     'account.middleware.SessionRecordMiddleware',
 )
@@ -368,13 +375,18 @@ REST_FRAMEWORK = {
 }
 
 # =======================
-# CSRF Trusted origins (allows Swagger UI "Try it out" from localhost)
+# CSRF Trusted origins
 # =======================
-CSRF_TRUSTED_ORIGINS = [
-    'http://127.0.0.1:8000',
-    'http://localhost:8000',
-    'http://0.0.0.0:8000',
-]
+# On Render, set RENDER_EXTERNAL_URL env var or add your domain to CSRF_TRUSTED_ORIGINS
+_default_origins = "http://127.0.0.1:8000,http://localhost:8000,http://0.0.0.0:8000"
+_extra_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+_all_origins = _default_origins + ("," + _extra_origins if _extra_origins else "")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _all_origins.split(",") if o.strip()]
+
+# Render automatically sets RENDER_EXTERNAL_URL
+_render_url = os.environ.get("RENDER_EXTERNAL_URL")
+if _render_url and _render_url not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(_render_url)
 
 # =======================
 # Password validation
@@ -399,9 +411,19 @@ USE_TZ = True
 # Static & Uploads
 # =======================
 STATIC_URL = '/public/'
-STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # for collectstatic on Render
 
-# Uploads
+# Only add STATICFILES_DIRS if the folder exists (avoids error on fresh Render build)
+_public_dir = os.path.join(DATA_DIR, "public")
+if os.path.isdir(_public_dir):
+    STATICFILES_DIRS = [_public_dir]
+else:
+    STATICFILES_DIRS = []
+
+# WhiteNoise — serves static files directly from Django (no separate Nginx needed on Render)
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Uploads / Test cases
 AVATAR_URI_PREFIX = "/public/avatar"
 AVATAR_UPLOAD_DIR = os.path.join(DATA_DIR, "public", "avatar")
 UPLOAD_PREFIX = "/public/upload"
@@ -409,19 +431,37 @@ UPLOAD_DIR = os.path.join(DATA_DIR, "public", "upload")
 TEST_CASE_DIR = os.path.join(DATA_DIR, "test_case")
 LOG_PATH = os.path.join(DATA_DIR, "log")
 
+# Auto-create runtime dirs so Render doesn't crash on first boot
+for _d in [AVATAR_UPLOAD_DIR, UPLOAD_DIR, TEST_CASE_DIR, LOG_PATH,
+           os.path.join(DATA_DIR, "config")]:
+    os.makedirs(_d, exist_ok=True)
+
 # =======================
-# Database (PostgreSQL in Docker)
+# Database
 # =======================
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'onlinejudge',
-        'USER': 'onlinejudge',
-        'PASSWORD': 'onlinejudge',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+# DATABASE_URL is injected by Render (Neon / Render PostgreSQL / Supabase).
+# Format: postgres://USER:PASSWORD@HOST:PORT/DBNAME
+_DATABASE_URL = os.environ.get("DATABASE_URL")
+if _DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            _DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    # Local development fallback
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'onlinejudge'),
+            'USER': os.environ.get('POSTGRES_USER', 'onlinejudge'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'onlinejudge'),
+            'HOST': os.environ.get('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
+    }
 
 
 SWAGGER_SETTINGS = {
@@ -496,17 +536,22 @@ SWAGGER_SETTINGS = {
 # =======================
 # Redis
 # =======================
-REDIS_CONF = {
-    "host": "127.0.0.1",
-    "port": "6379",
-}
-
-# REDIS_CONF = {
-#     "host": "oj-redis",   # Docker service name
-#     "port": "6379",
-# }
-
-REDIS_URL = f"redis://{REDIS_CONF['host']}:{REDIS_CONF['port']}"
+# REDIS_URL is injected by Render (Upstash / Render Redis).
+# Format: redis://USER:PASSWORD@HOST:PORT  or  rediss://... for TLS (Upstash)
+_REDIS_URL_ENV = os.environ.get("REDIS_URL")
+if _REDIS_URL_ENV:
+    REDIS_URL = _REDIS_URL_ENV
+    # Parse host/port for REDIS_CONF
+    import urllib.parse as _urlparse
+    _r = _urlparse.urlparse(_REDIS_URL_ENV)
+    REDIS_CONF = {"host": _r.hostname, "port": str(_r.port or 6379)}
+else:
+    # Local development fallback
+    REDIS_CONF = {
+        "host": os.environ.get('REDIS_HOST', '127.0.0.1'),
+        "port": os.environ.get('REDIS_PORT', '6379'),
+    }
+    REDIS_URL = f"redis://{REDIS_CONF['host']}:{REDIS_CONF['port']}"
 
 def redis_config(db):
     def make_key(key, key_prefix, version):

@@ -1,0 +1,74 @@
+# render.yaml — Render Blueprint
+# Deploys the OnlineJudge Django backend as a Web Service on Render
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: onlinejudge-backend
+    runtime: python
+    region: singapore   # change to: oregon, frankfurt, ohio, virginia as needed
+    plan: free          # upgrade to 'starter' ($7/mo) for always-on
+
+    # Where Render looks for your code
+    rootDir: .
+
+    # Python version
+    buildFilter:
+      paths:
+        - "**/*.py"
+        - requirements.txt
+        - build.sh
+        - render.yaml
+
+    # Build command (runs once per deploy)
+    buildCommand: "./build.sh"
+
+    # Start command (runs the web server)
+    startCommand: "gunicorn oj.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+
+    # Health check — Render pings this to confirm app is up
+    healthCheckPath: /api/conf/
+
+    envVars:
+      # ── Django ───────────────────────────────────────────────────────────────
+      - key: DJANGO_SETTINGS_MODULE
+        value: oj.settings
+
+      - key: DJANGO_DEBUG
+        value: "False"
+
+      # Your Render app URL — set this after first deploy
+      # e.g. https://onlinejudge-backend.onrender.com
+      - key: ALLOWED_HOSTS
+        value: "onlinejudge-backend.onrender.com,localhost,127.0.0.1"
+
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://onlinejudge-backend.onrender.com"
+
+      # Set a strong secret key here — generate with:
+      # python -c "import secrets; print(secrets.token_hex(32))"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true   # Render auto-generates a secure random value
+
+      # ── Database (Neon.tech or Render PostgreSQL) ─────────────────────────
+      # Paste your DATABASE_URL from Neon.tech or Render Postgres here
+      - key: DATABASE_URL
+        value: "YOUR_NEON_DATABASE_URL_HERE"
+        # Example:  postgresql://onlinejudge_user:password@ep-xxx.aws.neon.tech/onlinejudge?sslmode=require
+
+      # ── Redis (Upstash) ───────────────────────────────────────────────────
+      # Paste your REDIS_URL from Upstash.com here
+      - key: REDIS_URL
+        value: "YOUR_UPSTASH_REDIS_URL_HERE"
+        # Example:  rediss://default:password@global-stable-xxx.upstash.io:6379
+
+      # ── Admin user (created by build.sh) ─────────────────────────────────
+      - key: ADMIN_USERNAME
+        value: "root"
+
+      - key: ADMIN_PASSWORD
+        value: "ChangeMe123!"   # ← CHANGE THIS to a strong password
+
+      # ── Python ───────────────────────────────────────────────────────────
+      - key: PYTHON_VERSION
+        value: "3.10.13"
